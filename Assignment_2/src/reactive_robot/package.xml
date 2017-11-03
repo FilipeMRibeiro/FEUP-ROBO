@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<package>
+
+  <name>reactive_robot</name>
+  <version>0.0.2</version>
+  
+  <!-- project description -->
+  <description>
+  	A simple reactive robot that follows walls.
+  	Designed for the Robotics course at FEUP @ 2017.
+  </description>
+  
+	<!-- maintainers list -->
+	<maintainer email="up201305617@fe.up.pt">Paulo Ferreira</maintainer>
+	<maintainer email="up201305618@fe.up.pt">Pedro Melo</maintainer>
+
+  <license>GPLv3</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+	
+	<!-- build dependencies -->
+	<build_depend>roscpp</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>stdr_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  
+  <!-- runtime dependencies -->
+	<run_depend>roscpp</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>stdr_msgs</run_depend>
+  <run_depend>nav_msgs</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  
+  <export></export>
+  
+</package>
