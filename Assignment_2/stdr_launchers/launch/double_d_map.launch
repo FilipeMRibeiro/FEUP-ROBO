@@ -1,0 +1,14 @@
+<launch>
+	
+	<!-- initilialize robot manager -->
+	<include file="$(find stdr_robot)/launch/robot_manager.launch" />
+	
+	<!-- load map -->
+	<node type="stdr_server_node" pkg="stdr_server" name="stdr_server" output="screen" args="$(find stdr_resources)/maps/double_d_map.yaml"/>
+
+	<!-- initialize STDR GUI -->
+	<include file="$(find stdr_gui)/launch/stdr_gui.launch"/>
+	
+	<!-- initialize robot -->
+	<node pkg="stdr_robot" type="robot_handler" name="$(anon robot_spawn)" args="add $(find stdr_resources)/resources/robots/reactive_robot.yaml 6 15 0"/>
+</launch>

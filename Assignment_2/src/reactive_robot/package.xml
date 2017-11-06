@@ -21,15 +21,11 @@
 	<!-- build dependencies -->
 	<build_depend>roscpp</build_depend>
   <build_depend>sensor_msgs</build_depend>
-  <build_depend>stdr_msgs</build_depend>
-  <build_depend>nav_msgs</build_depend>
   <build_depend>geometry_msgs</build_depend>
   
   <!-- runtime dependencies -->
 	<run_depend>roscpp</run_depend>
   <run_depend>sensor_msgs</run_depend>
-  <run_depend>stdr_msgs</run_depend>
-  <run_depend>nav_msgs</run_depend>
   <run_depend>geometry_msgs</run_depend>
   
   <export></export>

@@ -8,9 +8,7 @@ project(reactive_robot)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   geometry_msgs
-  nav_msgs
   sensor_msgs
-  stdr_msgs
 )
 
 # Declare our catkin package.
