@@ -25,7 +25,7 @@ using namespace cv;
 bool ipmLeftDone;
 bool ipmRightDone;
 
-float angle = 0;
+double angle = 0;
 
 /// Intrisic Camera parameters
 /*
@@ -107,22 +107,6 @@ void imageLeftCallback(const sensor_msgs::ImageConstPtr& msg)
     try
     {
         cv::Mat img_rgb = cv_bridge::toCvShare(msg, "bgr8")->image;  
-        Mat img_gray;
-        
-        //our stuff
-        cvtColor(img_rgb, img_gray, CV_BGR2GRAY);
-        threshold(img_gray, img_gray, 250, 255, THRESH_BINARY);
-        Canny(img_gray, img_gray, 128, 128, 3, false);
-        
-        vector<Vec4i> lines;
-        HoughLinesP(img_gray, lines, 1, CV_PI/180, 65, 1, 5);
-        
-        for(size_t i = 0; i < lines.size(); i++)
-        {
-        	Vec4i l = lines[i];
-        	line(img_rgb, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,0,255), 5, CV_AA);
-        }
-        
         cv::imshow("left rgb", img_rgb);
         
         ipmLeftDone = true;
@@ -144,61 +128,81 @@ void imageLeftCallback(const sensor_msgs::ImageConstPtr& msg)
 }
 ///----------------------------------------------RIGHT-----------------------------------------------
 
+Mat rotate(Mat src, double angle)
+{
+    Mat dst;
+    Point2f pt(src.cols/2, src.rows/2);
+    Mat r = getRotationMatrix2D(pt, angle, 1.0);
+    warpAffine(src, dst, r, Size(src.cols, src.rows));
+    return dst;
+}
+
 void imageRightCallback(const sensor_msgs::ImageConstPtr& msg)
 {
     try
     {
         Mat img_rgb = cv_bridge::toCvShare(msg, "bgr8")->image;
+        ////////////////////////////////////////////////////////////////////////////////////////////////
         
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-        
+        Mat ROI(img_rgb, Rect(30, 0, 50, 55));
+        Mat croppedImage, croppedImageGray;
+        ROI.copyTo(croppedImage);
+        Mat croppedImageRot = rotate(croppedImage, -14);
+
         // convert image into a binary image
-        Mat img_gray;
-        cvtColor(img_rgb, img_gray, CV_BGR2GRAY);
-        threshold(img_gray, img_gray, 250, 255, THRESH_BINARY);
+        cvtColor(croppedImageRot, croppedImageGray, CV_BGR2GRAY);
+        threshold(croppedImageGray, croppedImageGray, 250, 255, THRESH_BINARY);
         
         // detect edges
         vector<Vec4i> lines;
-        Canny(img_gray, img_gray, 128, 128, 3, false);
-        HoughLinesP(img_gray, lines, 1, CV_PI/180, 0, 23, 12);
-        
-        // find line which is farther to the right
-        Vec4i outLine;
-        outLine[0] = 0; 
-        outLine[1] = 0;
-        outLine[2] = 0;
-        outLine[3] = 0;
-        
-        for(size_t i = 0; i < lines.size(); i++)
+        Canny(croppedImageGray, croppedImageGray, 128, 128, 3, false);
+
+        // find image contours
+        vector<vector<Point> > contours;
+        vector<Vec4i> hierarchy;
+        findContours(croppedImageGray, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, Point(0,0));
+
+        // calculate contour with greatest area
+        double max = 0;
+        int index;
+        for(int i = 0; i < contours.size(); i++)
         {
-        	Vec4i l = lines[i];
-        	
-        	// compare x-coordinates
-        	if (max(l[0],l[2]) >= max(outLine[0], outLine[2]))
-        	{
-        		outLine[0] = l[0];
-        		outLine[1] = l[1];
-        		outLine[2] = l[2];
-        		outLine[3] = l[3];
-        	}		
+            double temp = contourArea(contours[i]);
+            if (temp > max)
+            {
+                max = temp;
+                index = i;
+            }
         }
-        
-        // draw line over original image
-        line(img_rgb, Point(outLine[0], outLine[1]), Point(outLine[2], outLine[3]), Scalar(0,0,255), 5);
-        
+
+        // get center of mass of greatest countour
+        Moments mu = moments(contours[index], false);
+        Point point;
+        point.x = mu.m10/mu.m00;
+        point.y = mu.m01/mu.m00;
+
+        line(croppedImageRot, point, point, Scalar(0,0,255), 5);
+        imshow("crop", croppedImageRot);
+
         // calculate angle
-        angle = atan((outLine[1] - outLine[3]) / (outLine[0] - outLine[2]));
-        
-        // publish angle
-		  	geometry_msgs::Twist velocity_msg;
-		    velocity_msg.linear.x = 0.25;
-		    velocity_msg.angular.z = angle; 
-		    publisher.publish(velocity_msg);
-        
+        double angular;
+        double delta_x = point.x - 14;
+
+        if (abs(delta_x) >= 0 && abs(delta_x) <= 5.0) 
+            angular = 0;
+        else 
+            angular = -0.01 * delta_x;
+
+        geometry_msgs::Twist velocity_msg;
+        velocity_msg.linear.x = 0.10;
+        velocity_msg.angular.z = angular;
+        publisher.publish(velocity_msg);
+        ROS_ERROR("Delta_x : %f",delta_x);
+        ROS_ERROR("Point.x : %d",point.x);
         imshow("right rgb", img_rgb);
         
         /////////////////////////////////////////////////////////////////////////////////////////////////
-        
+
         ipmRightDone = true;
         
         uint8_t k = cv::waitKey(1);
