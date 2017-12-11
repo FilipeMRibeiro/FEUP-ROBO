@@ -128,6 +128,11 @@ void imageLeftCallback(const sensor_msgs::ImageConstPtr& msg)
 }
 ///----------------------------------------------RIGHT-----------------------------------------------
 
+Point history(14, 40);
+double angular = 0; // robot's angular velocity
+int numberLines = 15;
+int numberCols = 25; 
+
 Mat rotate(Mat src, double angle)
 {
     Mat dst;
@@ -148,6 +153,51 @@ void imageRightCallback(const sensor_msgs::ImageConstPtr& msg)
         Mat croppedImage, croppedImageGray;
         ROI.copyTo(croppedImage);
         Mat croppedImageRot = rotate(croppedImage, -14);
+        
+        for (int i = 0; i < numberLines; i++)
+        {
+            for (int j = 0; j < croppedImageRot.cols; j++ )
+            {
+                Vec3b color = croppedImageRot.at<Vec3b>(Point(j,i));
+                color[0] = 0;
+                color[1] = 0;
+                color[2] = 0;
+                croppedImageRot.at<Vec3b>(Point(j,i)) = color;
+            }
+        }
+        
+        for (int i = 0; i < croppedImageRot.rows; i++)
+        {
+            for (int j = numberCols; j < croppedImageRot.cols; j++ )
+            {
+                Vec3b color = croppedImageRot.at<Vec3b>(Point(j,i));
+                color[0] = 0;
+                color[1] = 0;
+                color[2] = 0;
+                croppedImageRot.at<Vec3b>(Point(j,i)) = color;
+            }
+        }
+
+        for (int i = 0; i < croppedImageRot.cols; i++)
+        {
+            Vec3b color;
+            color[0] = 0;
+            color[1] = 0;
+            color[2] = 0;
+            croppedImageRot.at<Vec3b>(Point(i,26)) = color;
+        }
+
+        for (int i = 0; i < croppedImageRot.rows; i++)
+        {
+            for (int j = 35; j < croppedImageRot.cols; j++ )
+            {
+                Vec3b color = croppedImageRot.at<Vec3b>(Point(j,i));
+                color[0] = 0;
+                color[1] = 0;
+                color[2] = 0;
+                croppedImageRot.at<Vec3b>(Point(j,i)) = color;
+            }
+        }
 
         // convert image into a binary image
         cvtColor(croppedImageRot, croppedImageGray, CV_BGR2GRAY);
@@ -175,9 +225,9 @@ void imageRightCallback(const sensor_msgs::ImageConstPtr& msg)
             }
         }
 
+        Point point;
         // get center of mass of greatest countour
         Moments mu = moments(contours[index], false);
-        Point point;
         point.x = mu.m10/mu.m00;
         point.y = mu.m01/mu.m00;
 
@@ -185,20 +235,41 @@ void imageRightCallback(const sensor_msgs::ImageConstPtr& msg)
         imshow("crop", croppedImageRot);
 
         // calculate angle
-        double angular;
         double delta_x = point.x - 14;
 
-        if (abs(delta_x) >= 0 && abs(delta_x) <= 5.0) 
-            angular = 0;
-        else 
-            angular = -0.01 * delta_x;
+        double distance = cv::norm(point - history);
+        
+        // verify point precision
+        if (distance > 1000) {
+            point.x = history.x;
+            point.y = history.y;
+            ROS_ERROR("NO POINT DETECTED.DEFAULT.");
+        } else if (distance < 10) {
+            // verify if turn is needed
+            if (abs(delta_x) >= 0 && abs(delta_x) <= 5.0) 
+                angular = 0;
+            else 
+                angular = -0.01 * delta_x;
+
+            // update point coordinates
+            history.x = point.x;
+            history.y = point.y;
+        }
 
         geometry_msgs::Twist velocity_msg;
         velocity_msg.linear.x = 0.10;
         velocity_msg.angular.z = angular;
         publisher.publish(velocity_msg);
-        ROS_ERROR("Delta_x : %f",delta_x);
-        ROS_ERROR("Point.x : %d",point.x);
+        ROS_ERROR("Distance : %f", distance);
+
+        if (point.y >= 40 ) {
+            numberCols = 35;
+            numberLines = 25;
+        } else {
+            numberCols = 25;
+            numberLines = 15;
+        }
+
         imshow("right rgb", img_rgb);
         
         /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -257,16 +328,16 @@ int main(int argc, char** argv)
     // publish velocity
     publisher = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 2000);
 
-    ros::spin();
+    //ros::spin();
     
-    /*ros::Rate r(2000);
+    ros::Rate r(2000);
     while(ros::ok())
     {
       
       // wait until it's time for another iteration
     	ros::spinOnce();
     	r.sleep();
-    }*/
+    }
     
     cv::destroyWindow("view");
 }
