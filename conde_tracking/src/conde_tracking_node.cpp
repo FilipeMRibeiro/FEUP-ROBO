@@ -185,6 +185,11 @@ void imageRightCallback(const sensor_msgs::ImageConstPtr& msg)
             color[1] = 0;
             color[2] = 0;
             croppedImageRot.at<Vec3b>(Point(i,26)) = color;
+            croppedImageRot.at<Vec3b>(Point(i,27)) = color;
+            croppedImageRot.at<Vec3b>(Point(i,28)) = color;
+            croppedImageRot.at<Vec3b>(Point(i,36)) = color;
+            croppedImageRot.at<Vec3b>(Point(i,37)) = color;
+            croppedImageRot.at<Vec3b>(Point(i,46)) = color;
         }
 
         for (int i = 0; i < croppedImageRot.rows; i++)
