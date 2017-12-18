@@ -12,6 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
 )
 
+find_package(OpenCV REQUIRED)
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -139,6 +141,7 @@ include_directories(
 ## Specify libraries to link a library or executable target against
  target_link_libraries(conde_semaphore_node
    ${catkin_LIBRARIES}
+   ${OpenCV_LIBRARIES}
  )
 
 #############
