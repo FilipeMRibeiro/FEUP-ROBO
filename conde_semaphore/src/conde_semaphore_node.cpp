@@ -6,6 +6,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include "std_msgs/String.h"
 #include <opencv2/xfeatures2d/nonfree.hpp>
+#include <unistd.h>
 
 ros::Publisher semaphore_pub;
 
@@ -45,56 +46,74 @@ vector<DMatch> getGoodMatches(Mat descriptors_database, Mat descriptors_scene)
 	return good_matches;
 }
 
+string getSign(vector<string>sign_names, Mat descriptors)
+{
+	int max = 0;
+	string sign;
+	Mat resize_temp;
+	for(int i=0; i<sign_names.size();i++)
+	{
+		Mat database_image = imread(sign_names[i], IMREAD_GRAYSCALE);
+		Ptr<SIFT> detector = SIFT::create();
+		vector<KeyPoint> keypoints_database;
+		Mat data_descriptors;
+		resize(database_image,resize_temp,Size(),0.5,0.5);
+		detector->detectAndCompute( resize_temp, Mat(), keypoints_database, data_descriptors );
+		vector<DMatch> good_matches = getGoodMatches(data_descriptors,descriptors);
+		int per = good_matches.size()*100/keypoints_database.size();
+		/*if(per >= max)
+		{
+			max = per;
+			sign = sign_names[i];
+		}*/
+		if(per >=80)
+		{
+			sign = sign_names[i];
+		}
+	}
+	return sign;
+}
+
 void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
     try
     {
-	cv::Mat img_gray;
-	cv::Mat resize;	
-	cv::Mat croppedImage;
-	
-	cv::Mat img_descriptors, data_descriptors;
-	cv::Mat img_2 = imread( "/home/jorge/catkin_ws/src/FEUP-ROBO-master/gazebo_semaphore/semaphores_pics/stop.png", IMREAD_GRAYSCALE );
-	cv::resize(img_2,resize,Size(),0.5,0.5);
-        cv::Mat img_rgb = cv_bridge::toCvShare(msg, "bgr8")->image;
-	cv::Mat ROI(img_rgb, Rect(90, 0, 230, 150));
-	ROI.copyTo(croppedImage);
-	cvtColor(img_rgb, img_gray, CV_BGR2GRAY);
+		Mat img_gray;
+		Mat resize;	
+		Mat croppedImage;
 
-	Ptr<SIFT> detector = SIFT::create( );
-	std::vector<cv::KeyPoint> keypoints_original, keypoints_database;
+		Mat img_descriptors, data_descriptors;
+		Mat img_2 = imread( "/home/jorge/catkin_ws/src/FEUP-ROBO-master/gazebo_semaphore/semaphores_pics/stop.png", IMREAD_GRAYSCALE );
+		//resize(img_2,resize,Size(),0.5,0.5);
+        Mat img_rgb = cv_bridge::toCvShare(msg, "bgr8")->image;
+		Mat ROI(img_rgb, Rect(90, 0, 230, 150));
+		ROI.copyTo(croppedImage);
+		cvtColor(img_rgb, img_gray, CV_BGR2GRAY);
+
+		Ptr<SIFT> detector = SIFT::create();
+		vector<KeyPoint> keypoints_original, keypoints_database;
     	detector->detectAndCompute( croppedImage, Mat(), keypoints_original, img_descriptors );
-  	detector->detectAndCompute( img_2, Mat(), keypoints_database, data_descriptors );
-	
-	vector<DMatch> good_matches = getGoodMatches(data_descriptors,img_descriptors);
+  		//detector->detectAndCompute( resize, Mat(), keypoints_database, data_descriptors );
 
-	Mat img_matches;
-  	drawMatches(img_2 ,keypoints_database , croppedImage, keypoints_original, good_matches, img_matches );
+		//vector<DMatch> good_matches = getGoodMatches(data_descriptors,img_descriptors);
+
+		//Mat img_matches;
+  		//drawMatches(img_2 ,keypoints_database , croppedImage, keypoints_original, good_matches, img_matches );
  
-  	imshow("Matches", img_matches );
+  		//imshow("Matches", img_matches );
 
-	std::cout<<(good_matches.size()*100/keypoints_database.size())<<std::endl;
+		//std::cout<<(good_matches.size()*100/keypoints_database.size())<<std::endl;
 
-	//cv::Mat output;
-    	//cv::drawKeypoints(img_gray, keypoints, output);
-	//cv::imshow("OUTPUT",output);
-        //std::string semaphore_data("false");
-
-        /*if (semaphore_data != "false")
-        {
-            /// Publish Semaphore Info
-            std_msgs::String msg;
-            msg.data.clear();
-            msg.data = semaphore_data;
-            ros::Rate loop_rate(200);
-            semaphore_pub.publish(msg);
-            ros::spinOnce();
-            loop_rate.sleep();
-
-        }*/
+		vector<string> signs;
+		signs.push_back("/home/jorge/catkin_ws/src/FEUP-ROBO-master/gazebo_semaphore/semaphores_pics/stop.png");
+		signs.push_back("/home/jorge/catkin_ws/src/FEUP-ROBO-master/gazebo_semaphore/semaphores_pics/up.png");
+		signs.push_back("/home/jorge/catkin_ws/src/FEUP-ROBO-master/gazebo_semaphore/semaphores_pics/parking.png");
+		signs.push_back("/home/jorge/catkin_ws/src/FEUP-ROBO-master/gazebo_semaphore/semaphores_pics/right.png");
+		signs.push_back("/home/jorge/catkin_ws/src/FEUP-ROBO-master/gazebo_semaphore/semaphores_pics/left.png");
+		cout<<getSign(signs,img_descriptors)<<endl;
 
         cv::imshow("rgb",img_rgb);
-	cv::imshow("crop",croppedImage);
+		cv::imshow("crop",croppedImage);
 
         uint8_t k = cv::waitKey(1);
     }
@@ -102,12 +121,10 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
     {
         ROS_ERROR("Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
     }
-
 }
 
 int main(int argc, char** argv)
 {
-
     ros::init(argc, argv, "conde_semaphore_node");
     ros::NodeHandle nh("~");
     cv::namedWindow("rgb");
