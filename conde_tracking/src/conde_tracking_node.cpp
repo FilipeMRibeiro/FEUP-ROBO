@@ -1,5 +1,7 @@
+#include <iostream>
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
+#include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -237,7 +239,7 @@ void imageRightCallback(const sensor_msgs::ImageConstPtr& msg)
         point.y = mu.m01/mu.m00;
 
         line(croppedImageRot, point, point, Scalar(0,0,255), 5);
-        //imshow("crop", croppedImageRot);
+        imshow("crop", croppedImageRot);
 
         // calculate angle
         double delta_x = point.x - 14;
@@ -275,13 +277,13 @@ void imageRightCallback(const sensor_msgs::ImageConstPtr& msg)
             numberLines = 15;
         }
 
-        cv::imshow("right rgb", img_rgb);
+        imshow("right rgb", img_rgb);
         
         /////////////////////////////////////////////////////////////////////////////////////////////////
 
         ipmRightDone = true;
         
-        //uint8_t k = cv::waitKey(1);
+        uint8_t k = cv::waitKey(1);
     } catch (cv_bridge::Exception& e) {
         ROS_ERROR("Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
     }
@@ -331,7 +333,7 @@ int main(int argc, char** argv)
     crossWalk_pub = nh.advertise<std_msgs::Bool>("/crossWalk", 1);
     
     // publish velocity
-    publisher = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 2000);
+    publisher = nh.advertise<geometry_msgs::Twist>("/conde_tracking_info", 100);
 
     //ros::spin();
     
