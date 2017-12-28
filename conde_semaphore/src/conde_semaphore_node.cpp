@@ -6,7 +6,9 @@
 #include <cv_bridge/cv_bridge.h>
 #include "std_msgs/String.h"
 #include <opencv2/xfeatures2d/nonfree.hpp>
+#include <opencv2/xfeatures2d.hpp>
 #include <unistd.h>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include <sys/types.h>
 #include <dirent.h>
@@ -20,7 +22,7 @@ using namespace cv::xfeatures2d;
 vector<string> signs; // signal image paths
 vector<Mat> image_descriptors; // signal image descriptors
 string path = "/home/pedro/Documents/FEUP/ROBO/conde_simulator/src/gazebo_semaphore/semaphores_pics/"; // absolute path of image dataset
-
+string path_1 = "/home/jorge/catkin_ws/src/FEUP-ROBO/gazebo_semaphore/semaphores_pics/";
 // process image key points
 vector<DMatch> getGoodMatches(Mat descriptors_database, Mat descriptors_scene)
 {
@@ -57,7 +59,7 @@ vector<DMatch> getGoodMatches(Mat descriptors_database, Mat descriptors_scene)
 // obtain detected signal, if any
 string getSign(vector<KeyPoint> keypoints_database, Mat descriptors)
 {
-	string sign = "undetected";	// signal name
+	string sign = "arrow";	// signal name
 	int max_confidence = 0;
 
 	// for each existent signal
@@ -79,6 +81,8 @@ string getSign(vector<KeyPoint> keypoints_database, Mat descriptors)
 			sign = signs[i];
 		}
 	}
+
+	cout<<max_confidence<<endl;
 	
 	return sign;
 }
@@ -93,24 +97,80 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 
 		// read and process upper camera image	
 		Mat img_rgb = cv_bridge::toCvShare(msg, "bgr8")->image;
-		cvtColor(img_rgb, img_gray, CV_BGR2GRAY);
+		
+		/*vector<Mat> hsv_planes;
+		split(hsv, hsv_planes);
+		Mat h = hsv_planes[0]; // H channel
+		Mat s = hsv_planes[1]; // S channel
+		Mat v = hsv_planes[2]; // V channel*/
+		
+		
+		
 		Mat ROI(img_rgb, Rect(90, 0, 230, 150));
 		ROI.copyTo(croppedImage);
-			
+		
+		
+		Mat croppedImageGray;
+		cvtColor(croppedImage, croppedImageGray, CV_BGR2GRAY);
+
 		// detect key points
 		Mat img_descriptors;
 		vector<KeyPoint> keypoints_original;
-		Ptr<SIFT> detector = SIFT::create();
-		detector->detectAndCompute(croppedImage, Mat(), keypoints_original, img_descriptors);
 		
+		Ptr<FeatureDetector> detector;
+		Ptr<DescriptorExtractor> extractor;
+
+		detector = SiftFeatureDetector::create();
+		extractor = SiftDescriptorExtractor::create();
+		
+		detector->detect(croppedImageGray, keypoints_original);
+		extractor->compute(croppedImageGray,keypoints_original, img_descriptors);
+		Mat scene_output;
+		drawKeypoints(croppedImageGray, keypoints_original, scene_output, Scalar::all(-1));
+
 		// publish detected signal
 		std_msgs::String detected;
         detected.data = getSign(keypoints_original, img_descriptors);
+
+		if(detected.data == "arrow")
+		{
+			cout<<"entrei"<<endl;
+			Mat hsv;
+			string ori;
+			cvtColor(croppedImage,hsv,cv::COLOR_BGR2HSV);
+			for(int i=0;i<hsv.rows;i++)
+			{
+				for(int j=0;j<hsv.cols;j++)
+				{
+					Vec3b hsv_vec = hsv.at<Vec3b>(i, j);
+					
+					if(hsv_vec[2]>90 && hsv_vec[2]<150)
+					{
+						ori = "left";
+						detected.data = ori;
+						break;
+					}
+					else if(hsv_vec[2]>200 && hsv_vec[2]<260)
+					{
+						detected.data = string("up");
+						break;
+					}
+					else if(hsv_vec[2]>1 && hsv_vec[2]<20)
+					{
+						detected.data = string("right");
+						break;
+					}
+				}
+			}
+		}
+
+		cout<<detected.data<<endl;
         semaphore_pub.publish(detected);
 
 		// display the obtained images
 		cv::imshow("rgb", img_rgb);
 		cv::imshow("crop", croppedImage);
+		cv::imshow("key", scene_output);
 
 		uint8_t k = cv::waitKey(1);
 	}
@@ -122,14 +182,14 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 
 int main(int argc, char** argv)
 {
-
+	cout<<argv[1]<<endl;
 	///////////////////////////////////////////////////////////////////////////////
 	///																			///								
 	///							OPENCV INITIALIZATION							///
 	///																			///
 	///////////////////////////////////////////////////////////////////////////////
 	
-	
+	path = argv[1];
 	// open signal image dataset
 	DIR *dir_ptr = opendir(path.c_str());
 
@@ -170,8 +230,17 @@ int main(int argc, char** argv)
 		resize(database_image,resize_temp,Size(),0.5,0.5);
 		
 		// obtain signal image key points
-		Ptr<SIFT> detector = SIFT::create();
-		detector->detectAndCompute(resize_temp, Mat(), keypoints_database, data_descriptors);
+		//Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
+		//detector->detectAndCompute(resize_temp, Mat(), keypoints_database, data_descriptors);
+
+		Ptr<FeatureDetector> detector;
+		Ptr<DescriptorExtractor> extractor;
+		
+		detector = SiftFeatureDetector::create();
+		extractor = SiftDescriptorExtractor::create();
+		
+		detector->detect(resize_temp, keypoints_database);
+		extractor->compute(resize_temp,keypoints_database, data_descriptors);
 
 		image_descriptors.push_back(data_descriptors);
 	}

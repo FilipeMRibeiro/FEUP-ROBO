@@ -22,7 +22,7 @@ void semaphoreCallback(const std_msgs::String::ConstPtr& msg)
 {
   ROS_INFO("I heard: [%s]", msg->data.c_str());
 
-  if (msg->data == "stop")
+  if (msg->data == "sttggtgtgop")
     stop = true;
   else
     stop = false;
