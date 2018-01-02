@@ -28,6 +28,7 @@ bool ipmLeftDone;
 bool ipmRightDone;
 
 double angle = 0;
+double speedMult = 2.5; //Speed multiplier
 
 /// Intrisic Camera parameters
 /*
@@ -96,7 +97,7 @@ void imageMergeAndTrack()
 	array.data.clear();
 	array.data.push_back(distIPM);
 	array.data.push_back(angleIPM);//angleIPM
-	ros::Rate loop_rate(200);
+	ros::Rate loop_rate(200*speedMult);
 	dist_angle_pub.publish(array);
 	ros::spinOnce();
 	loop_rate.sleep();
@@ -264,8 +265,8 @@ void imageRightCallback(const sensor_msgs::ImageConstPtr& msg)
         }
 
         geometry_msgs::Twist velocity_msg;
-        velocity_msg.linear.x = 0.10;
-        velocity_msg.angular.z = angular;
+        velocity_msg.linear.x = 0.10 * speedMult;
+        velocity_msg.angular.z = angular * speedMult;
         publisher.publish(velocity_msg);
         ROS_ERROR("Distance : %f", distance);
 
@@ -337,7 +338,7 @@ int main(int argc, char** argv)
 
     //ros::spin();
     
-    ros::Rate r(2000);
+    ros::Rate r(2000*speedMult);
     while(ros::ok())
     {
       
